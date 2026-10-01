@@ -300,6 +300,17 @@ function render(): void {
   applyLang();
 }
 
+
+async function loadAndika(): Promise<void> {
+  const url = new URL('fonts/andika-bold.woff2', document.baseURI).href;
+  const face = new FontFace('Andika', `url(${url})`, {
+    weight: '700',
+    style: 'normal',
+  });
+  await face.load();
+  document.fonts.add(face);
+}
+
 async function boot(): Promise<void> {
   await askPersist();
   try {
@@ -309,6 +320,7 @@ async function boot(): Promise<void> {
     saveFailed = true;
   }
   try {
+    await loadAndika();
     await document.fonts.load('700 48px Andika');
     await document.fonts.ready;
   } catch {
