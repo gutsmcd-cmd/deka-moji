@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "prebuild": "mkdir -p src/assets && cp public/fonts/andika-bold.woff2 src/assets/andika-bold.woff2",
+    "predev": "mkdir -p src/assets && cp public/fonts/andika-bold.woff2 src/assets/andika-bold.woff2"
   },
   "devDependencies": {
     "typescript": "~5.7.2",
