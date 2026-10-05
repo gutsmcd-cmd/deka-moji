@@ -49,7 +49,7 @@ export const dicts: Record<Lang, Dict> = {
     en: 'English',
   },
   en: {
-    app: 'Big Type',
+    app: 'Lyrics Enlarger',
     lead: 'Print lyrics big',
     lyrics: 'Lyrics',
     placeholder: 'Paste here',
