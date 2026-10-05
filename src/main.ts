@@ -37,7 +37,7 @@ const measureCtx = measureCanvas.getContext('2d');
 const measure: Measure = (text, fontMm) => {
   if (!measureCtx) return text.length * fontMm * 0.55;
   const px = fontMm * MM;
-  measureCtx.font = `700 ${px}px Andika`;
+  measureCtx.font = `700 ${px}px "ABC Print", Andika`;
   const width = measureCtx.measureText(text).width;
   if (!width) return text.length * fontMm * 0.55;
   return width / MM;
@@ -48,17 +48,17 @@ function isLang(v: unknown): v is Lang {
 }
 
 function normalize(raw: unknown): State {
-  const o = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+  const o = raw && typeof raw === 'object' ? (raw as {[key: string]: unknown}) : {};
   return {
     lang: isLang(o.lang) ? o.lang : 'ja',
     lyrics: typeof o.lyrics === 'string' ? o.lyrics : '',
   };
 }
 
-let saveChain: Promise<void> = Promise.resolve();
+let saveChain = Promise.resolve();
 let saveQueued = false;
 
-function queueSave(): void {
+function queueSave() {
   saveQueued = true;
   saveChain = saveChain
     .then(async () => {
@@ -90,11 +90,11 @@ window.addEventListener('pagehide', () => {
   queueSave();
 });
 
-function el<K extends keyof HTMLElementTagNameMap>(
-  tag: K,
-  props: Record<string, string | null | undefined>,
-  ...kids: Array<Node | string | null>
-): HTMLElementTagNameMap[K] {
+function el(
+  tag: keyof HTMLElementTagNameMap,
+  props: {[key: string]: string | null | undefined},
+  ...kids: (Node | string | null)[]
+): HTMLElement {
   const node = document.createElement(tag);
   for (const [key, value] of Object.entries(props)) {
     if (value == null) continue;
@@ -132,7 +132,7 @@ function sheetEl(model: SheetModel): HTMLElement {
   return sheet;
 }
 
-function draw(): void {
+function draw() {
   const stage = document.getElementById('stage');
   const empty = document.getElementById('empty');
   if (!stage || !empty) return;
@@ -147,7 +147,7 @@ function draw(): void {
   }
   empty.hidden = true;
   if (layout === 'banner') {
-    for (let i = 0; i < sheets.length; i += 2) {
+    for (let i = 0; sheets.length > i; i += 2) {
       const pair = sheets.slice(i, i + 2);
       const caps = el('div', { class: 'sheets' });
       for (const model of pair) {
@@ -169,7 +169,7 @@ function draw(): void {
   stage.append(wrap);
 }
 
-function applyLang(): void {
+function applyLang() {
   t = dicts[state.lang];
   document.documentElement.lang = state.lang;
   document.title = t.app;
@@ -231,13 +231,13 @@ function setLayout(next: LayoutId): void {
   applyLang();
 }
 
-function render(): void {
+function render() {
   const box = el('textarea', {
     id: 'lyrics',
     rows: '8',
     spellcheck: 'false',
     autocomplete: 'off',
-  });
+  }) as HTMLTextAreaElement;
   box.value = state.lyrics;
   box.addEventListener('input', () => {
     state.lyrics = box.value;
@@ -301,7 +301,9 @@ function render(): void {
 }
 
 
-async function loadAndika(): Promise<void> {
+async function loadAndika() {
+  // Belt-and-suspenders alongside @font-face in andika.css.
+  // public/fonts/andika-bold.woff2 is also copied to dist/fonts by Vite.
   const url = new URL('fonts/andika-bold.woff2', document.baseURI).href;
   const face = new FontFace('Andika', `url(${url})`, {
     weight: '700',
@@ -311,7 +313,7 @@ async function loadAndika(): Promise<void> {
   document.fonts.add(face);
 }
 
-async function boot(): Promise<void> {
+async function boot() {
   await askPersist();
   try {
     state = normalize(await idbLoad(DB));
@@ -321,10 +323,19 @@ async function boot(): Promise<void> {
   }
   try {
     await loadAndika();
-    await document.fonts.load('700 48px Andika');
+    // Prefer ABC Print when installed (school PCs); else Andika from the bundle.
+    await document.fonts.load('700 48px "ABC Print", Andika');
     await document.fonts.ready;
-  } catch {
-    /* system fallback still prints */
+  } catch (err) {
+    // FontFace load failed - @font-face in andika.css / system stack may still work.
+    // Do not swallow forever without a trace; still try document.fonts.load.
+    console.warn('Andika FontFace load failed; relying on @font-face / system fonts', err);
+    try {
+      await document.fonts.load('700 48px "ABC Print", Andika');
+      await document.fonts.ready;
+    } catch (err2) {
+      console.warn('document.fonts.load also failed; print may use generic sans', err2);
+    }
   }
   render();
   queueSave();
